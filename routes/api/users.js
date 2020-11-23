@@ -2,15 +2,22 @@ const express = require('express');
 const gravatar = require('gravatar');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken');
+const passport = require("passport");
 const router = express.Router();
 const User = require('../../models/User');
-const keys = require('../../config/keys')
+const keys = require('../../config/keys');
+const validateRegisterInput = require('../../validation/register');
+const validateLoginInput = require('../../validation/login');
 
 
 // @route   POST api/users/register
 // @desc    Register user
 // @access  Public
 router.post('/register', (req, res) => {
+  const {errors, isValid} = validateRegisterInput(req.body);
+  if (!isValid){
+    return res.status(400).json(errors);
+  }
   User.findOne({email: req.body.email})
   .then(user => {
     if(user){
@@ -50,6 +57,11 @@ router.post('/register', (req, res) => {
 // @access  Public
 router.post('/login', (req,res) => {
 
+  const {errors, isValid} = validateLoginInput(req.body);
+  if (!isValid){
+    return res.status(400).json(errors);
+  }
+
   User.findOne({email: req.body.email})
     .then(user => {
       if (!user){
@@ -71,8 +83,7 @@ router.post('/login', (req,res) => {
                 {expiresIn: 3600},
                 (err, token) => {
                   return res.json({token: 'Bearer ' + token})
-                }
-                );
+                });
 
             } else{
               return res.status(400).json({password: 'Invalid password'});
@@ -81,5 +92,20 @@ router.post('/login', (req,res) => {
       }
     })
 })
+
+// @route   GET api/users/current
+// @desc    return current user
+// @access  Private
+
+router.get('/current', passport.authenticate('jwt', {session: false}),
+          (req,res) => {
+              res.json({
+                id: req.user.id,
+                name: req.user.name,
+                email: req.user.email
+                //res.json({msg: 'Success'});
+              });
+})
+
 
 module.exports = router
